@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.5.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"always","offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    translation: {
+      copy_button: 'Copy',
+      copy_success: 'Copied',
+      copy_failure: 'Copy failed'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="Kubeadm是Kubernetes社区提供的一键快速部署Kubernetes的工具。在天朝之外排除了防火墙的干扰的地方，用户确实只需要执行kubeadm init即可一键安装kuberentes。那么kubeadm工具具体做了那些事？其部署Kubernetes的原理是什么？本文涉及到一些Kubernetes的概念（如静态Pod、ConfigMap、Secret、Service、DaemonSet">
+<meta property="og:type" content="article">
+<meta property="og:title" content="kubeadm概述">
+<meta property="og:url" content="https://blog.wangxiyuan.top/2018/02/13/kubeadm1-init/index.html">
+<meta property="og:site_name" content="风悦心幽时">
+<meta property="og:description" content="Kubeadm是Kubernetes社区提供的一键快速部署Kubernetes的工具。在天朝之外排除了防火墙的干扰的地方，用户确实只需要执行kubeadm init即可一键安装kuberentes。那么kubeadm工具具体做了那些事？其部署Kubernetes的原理是什么？本文涉及到一些Kubernetes的概念（如静态Pod、ConfigMap、Secret、Service、DaemonSet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2018-02-13T08:55:30.000Z">
+<meta property="article:modified_time" content="2020-05-11T03:35:18.018Z">
+<meta property="article:author" content="wxy">
+<meta property="article:tag" content="Kubernetes">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://blog.wangxiyuan.top/2018/02/13/kubeadm1-init/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>kubeadm概述 | 风悦心幽时</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">风悦心幽时</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">Blog</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>Archives</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/wangxiyuan" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="en">
+    <link itemprop="mainEntityOfPage" href="https://blog.wangxiyuan.top/2018/02/13/kubeadm1-init/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/uploads/avatar.gif">
+      <meta itemprop="name" content="wxy">
+      <meta itemprop="description" content="我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="风悦心幽时">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          kubeadm概述
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2018-02-13 08:55:30" itemprop="dateCreated datePublished" datetime="2018-02-13T08:55:30+00:00">2018-02-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Kubernetes/" itemprop="url" rel="index">
+                    <span itemprop="name">Kubernetes</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Kubeadm是Kubernetes社区提供的一键快速部署Kubernetes的工具。在天朝之外排除了防火墙的干扰的地方，用户确实只需要执行<code>kubeadm init</code>即可一键安装kuberentes。那么kubeadm工具具体做了那些事？其部署Kubernetes的原理是什么？本文涉及到一些Kubernetes的概念（如静态Pod、ConfigMap、Secret、Service、DaemonSet等等），需要读者先行找相关的K8S入门文章了解，本文不再赘述。</p>
+<a id="more"></a>
+
+<h1 id="1-init"><a href="#1-init" class="headerlink" title="1. init"></a>1. init</h1><h2 id="1-流程概述"><a href="#1-流程概述" class="headerlink" title="1. 流程概述"></a>1. 流程概述</h2><p><code>kubeadm init</code>主要进行了如下操作：</p>
+<ol>
+<li>pre check。首先会检查当前环境是否满足安装Kubernetes的要求，比如前文提到swap检查等等。</li>
+<li>生成自签名的证书和公私钥。用作ssl加密通信。保存在<code>/etc/kubernetes/pki/</code>中。</li>
+<li>根据上一步的证书，生成组件间交互以及访问API时需要的鉴权配置文件，包括<code>controller-manager.conf</code>、<code>kubelet.conf</code>、<code>scheduler.conf</code>以及<code>admin.conf</code>。保存在<code>/etc/kubernetes/</code>中。</li>
+<li><code>apiserver</code>、<code>controller-manager</code>和<code>scheduler</code>这三个服务是<code>kubelet</code>进程在初始化过程中，以静态Pod的方式拉起的，因此这里要先生成对应的Pod yaml文件。如果没有可访问的etcd服务时，还会自动生成<code>etcd</code>服务的yaml文件。保存在<code>/etc/kubernetes/manifests</code>中。</li>
+<li>第四步之后，kubernetes的主要进程已经运行好了，下面是一些配置工作。先给该节点打上<code>master</code>对应的标签，标明该节点是master节点。</li>
+<li>生成一个令牌，新node节点使用该令牌（<code>kubeadm join</code>命令）加入到该kubernetes集群中。为了保证新node可以join，还要在master节点上做一些配置，如创建对应的ConfigMap等等。</li>
+<li>创建<code>kube-dns</code>和<code>kube-proxy</code>两个动态Pod。当然在部署对应的CNI之前，DNS Pod是起不起来的。</li>
+</ol>
+<p>可以看到kubeadm的精髓在于<code>使用Kubernetes部署Kubernetes</code>。<code>Kubelet</code>不依赖其他Kubernetes组件就能创建Pod，从而使得apiserver等K8S服务容器化，以容器的方式提供容器编排服务，使人眼前一亮。</p>
+<h2 id="2-参数"><a href="#2-参数" class="headerlink" title="2. 参数"></a>2. 参数</h2><p>使用kubeadm init提供的参数可以定制化部署K8S集群，这些参数说明如下：</p>
+<table>
+<thead>
+<tr>
+<th align="left">参数 &lt;类型&gt;</th>
+<th>功能说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">–apiserver-advertise-address <string ></td>
+<td>API服务的IP地址，默认是0.0.0.0</td>
+</tr>
+<tr>
+<td align="left">–apiserver-bind-port <int32></td>
+<td>API服务的端口号，默认是6443</td>
+</tr>
+<tr>
+<td align="left">–apiserver-cert-extra-sans <stringSlice></td>
+<td>证书需要包含的额外内容。<a href="https://en.wikipedia.org/wiki/Subject_Alternative_Name" target="_blank" rel="noopener">sans</a>与X.509证书格式相关。</td>
+</tr>
+<tr>
+<td align="left">–cert-dir <string></td>
+<td>证书存储路径，默认是<code>/etc/kubernetes/pki</code></td>
+</tr>
+<tr>
+<td align="left">–config <string></td>
+<td>读取配置文件，指定更多的kubeadm参数。下一节讲详细说明该参数用法。</td>
+</tr>
+<tr>
+<td align="left">–cri-socket <string></td>
+<td>容器运行时的socket，默认是<code>/var/run/dockershim.sock</code></td>
+</tr>
+<tr>
+<td align="left">–dry-run</td>
+<td>只打印出<code>kubeadm init</code>的流程，但不执行任何改变。</td>
+</tr>
+<tr>
+<td align="left">–feature-gates <string></td>
+<td>一组键值对，使能对应的功能与否。</td>
+</tr>
+<tr>
+<td align="left">–ignore-preflight-errors <stringSlice></td>
+<td>在pre check时，忽略对应的errror，改为只打warning。</td>
+</tr>
+<tr>
+<td align="left">–kubernetes-version <string></td>
+<td>需要安装的K8S版本，默认是stable-1.9</td>
+</tr>
+<tr>
+<td align="left">–node-name <string></td>
+<td>节点的名字</td>
+</tr>
+<tr>
+<td align="left">–pod-network-cidr <string></td>
+<td>Pod对应虚拟网络的CIDR段。</td>
+</tr>
+<tr>
+<td align="left">–service-cidr <string></td>
+<td>Pod对应的对外暴露的服务的CIDR段。默认是<code>10.96.0.0/12</code></td>
+</tr>
+<tr>
+<td align="left">–service-dns-domain <string></td>
+<td>服务的dns域名。默认是<code>cluster.local</code></td>
+</tr>
+<tr>
+<td align="left">–skip-token-print</td>
+<td><code>kubeadm init</code>过程中，不打印令牌。</td>
+</tr>
+<tr>
+<td align="left">–token <string></td>
+<td>指定master和node之间的令牌，不再自动生成。</td>
+</tr>
+<tr>
+<td align="left">–token-ttl <duration></td>
+<td>自动生成的token的过期时间，为0表示永不过期。默认是<code>24h0m0s</code>。</td>
+</tr>
+</tbody></table>
+<p>这里需要特别说下<code>--feature-gates</code>这个参数，支持的功能有：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 使用CoreDns，不再使用默认的kube-dns。</span></span><br><span class="line">CoreDNS=true|false (ALPHA - default=false)</span><br><span class="line"><span class="meta">#</span><span class="bash"> 使用动态的ConfigMap来管理配置项。</span></span><br><span class="line">DynamicKubeletConfig=true|false (ALPHA - default=false)</span><br><span class="line"><span class="meta">#</span><span class="bash"> kubelet拉起的静态Pod将转为DaemonSet的Pod。</span></span><br><span class="line">SelfHosting=true|false (ALPHA - default=false)</span><br><span class="line"><span class="meta">#</span><span class="bash"> 使用Secret存储证书，而不是本地存储。</span></span><br><span class="line">StoreCertsInSecrets=true|false (ALPHA - default=false)</span><br></pre></td></tr></table></figure>
+
+<p>默认都是关闭状态，比如若想使用CoreDns，则执行命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubeadm init --feature-gates&#x3D;CoreDNS&#x3D;true</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-–config-用法"><a href="#3-–config-用法" class="headerlink" title="3. –config 用法"></a>3. –config 用法</h2><p>Kubeadm默认从google官网拉取docker镜像，那么遇到天朝这种访问不了谷歌的情况，甚至只能访问内部docker源的情况时，该怎么办？<a href="http://www.wangxiyuan.top/2018/02/12/kubernetes-install/" target="_blank" rel="noopener">前文</a>使用了手动拉镜像再打tag的土鳖方法。现在可以使用<code>kubeadm init --config</code>的方式手动指定镜像源。当然<code>--config</code>包含了更多功能。一般一个config文件的内容与格式如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 可以看到该方式还是alpha版本。说明其稳定性或功能并不完善，后续改动的可能非常大。</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">kubeadm.k8s.io/v1alpha1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">MasterConfiguration</span></span><br><span class="line"><span class="attr">api:</span></span><br><span class="line">  <span class="comment"># 对应到参数--apiserver-advertise-address和--apiserver-bind-port，以下很多地方也对应到相应的参数，</span></span><br><span class="line">  <span class="comment"># 不再细说。</span></span><br><span class="line">  <span class="attr">advertiseAddress:</span> <span class="string">&lt;address|string&gt;</span></span><br><span class="line">  <span class="attr">bindPort:</span> <span class="string">&lt;int&gt;</span></span><br><span class="line"><span class="attr">etcd:</span></span><br><span class="line">  <span class="attr">endpoints:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">&lt;endpoint1|string&gt;</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">&lt;endpoint2|string&gt;</span></span><br><span class="line">  <span class="attr">caFile:</span> <span class="string">&lt;path|string&gt;</span></span><br><span class="line">  <span class="attr">certFile:</span> <span class="string">&lt;path|string&gt;</span></span><br><span class="line">  <span class="attr">keyFile:</span> <span class="string">&lt;path|string&gt;</span></span><br><span class="line">  <span class="attr">dataDir:</span> <span class="string">&lt;path|string&gt;</span></span><br><span class="line">  <span class="attr">extraArgs:</span></span><br><span class="line">    <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">    <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="comment"># etcd 镜像的地址，可以专门指定。</span></span><br><span class="line">  <span class="attr">image:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">kubeProxy:</span></span><br><span class="line">  <span class="attr">config:</span></span><br><span class="line">    <span class="attr">mode:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">networking:</span></span><br><span class="line">  <span class="attr">dnsDomain:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line">  <span class="attr">serviceSubnet:</span> <span class="string">&lt;cidr&gt;</span></span><br><span class="line">  <span class="attr">podSubnet:</span> <span class="string">&lt;cidr&gt;</span></span><br><span class="line"><span class="attr">kubernetesVersion:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">cloudProvider:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">nodeName:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">authorizationModes:</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">&lt;authorizationMode1|string&gt;</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">&lt;authorizationMode2|string&gt;</span></span><br><span class="line"><span class="attr">token:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">tokenTTL:</span> <span class="string">&lt;time</span> <span class="string">duration&gt;</span></span><br><span class="line"><span class="attr">selfHosted:</span> <span class="string">&lt;bool&gt;</span></span><br><span class="line"><span class="comment"># 这里可以增加apiserver、controller-manager、scheduler服务启动时的额外参数。因此想要用好config，是需</span></span><br><span class="line"><span class="comment"># 要对K8S有一定掌握的。</span></span><br><span class="line"><span class="attr">apiServerExtraArgs:</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">controllerManagerExtraArgs:</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">schedulerExtraArgs:</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="string">&lt;argument&gt;:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="comment"># 因为apisever等服务是以Pod的方式运行的，因此可以给它们挂载卷。</span></span><br><span class="line"><span class="attr">apiServerExtraVolumes:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">hostPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">mountPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">controllerManagerExtraVolumes:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">hostPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">mountPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">schedulerExtraVolumes:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">hostPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line">  <span class="attr">mountPath:</span> <span class="string">&lt;value|string&gt;</span></span><br><span class="line"><span class="attr">apiServerCertSANs:</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">&lt;name1|string&gt;</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">&lt;name2|string&gt;</span></span><br><span class="line"><span class="attr">certificatesDir:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="comment"># 镜像源，这里可以配置成本地源，或aliyun、ustc等镜像源。</span></span><br><span class="line"><span class="attr">imageRepository:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="comment"># 有时为了方便或需要，apiserver、controller-manage等master节点的服务被打在一个镜像内，这时只需要指定</span></span><br><span class="line"><span class="comment"># 一个unifiedControlPlaneImage即可。</span></span><br><span class="line"><span class="attr">unifiedControlPlaneImage:</span> <span class="string">&lt;string&gt;</span></span><br><span class="line"><span class="attr">featureGates:</span></span><br><span class="line">  <span class="string">&lt;feature&gt;:</span> <span class="string">&lt;bool&gt;</span></span><br><span class="line">  <span class="string">&lt;feature&gt;:</span> <span class="string">&lt;bool&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="2-join"><a href="#2-join" class="headerlink" title="2. join"></a>2. join</h1><p>在Node节点执行<code>Kubeadm join</code>命令，可以把该节点加入到对应的Kubernetes集群中。join的流程是:</p>
+<ol>
+<li>访问apiserver获取K8S集群信息。</li>
+<li>根据集群信息，启动Kubelet进程</li>
+<li>Node和Master打通后，自动在node上拉起<code>kube-proxy</code> Pod。</li>
+</ol>
+<h1 id="3-reset"><a href="#3-reset" class="headerlink" title="3. reset"></a>3. reset</h1><p>可以在Master或Node节点上分别执行<code>kubeadm reset</code>命令，用来回滚对应的<code>kubeadm init</code>和<code>kubeadm join</code>操作。</p>
+<h1 id="4-upgrade"><a href="#4-upgrade" class="headerlink" title="4. upgrade"></a>4. upgrade</h1><p><code>kubeadm upgrade</code>命令用来升级当前kubernetes集群。</p>
+<p>首先执行<code>kubeadm upgrade plan</code>命令，检查当前可升级的版本信息。确定了要升级的版本后，执行<code>kubeadm upgrade apply [version]</code>进行在线升级。</p>
+<h1 id="5-其他命令"><a href="#5-其他命令" class="headerlink" title="5. 其他命令"></a>5. 其他命令</h1><ol>
+<li><code>kubeadm config</code>：提供<code>kubeadm config upload</code>、<code>kubeadm config view</code>两个子命令，分别用来备份和查询当前K8S集群的配置信息。</li>
+<li><code>kubeadm completaion</code>：打印出kubeadm每个命令的shell代码。</li>
+<li><code>kubeadm version</code>：打印当前kubeadm的版本信息。</li>
+<li><code>kubeadm token</code>：集群初始化令牌的CRUD，包括<code>kubeadm token create</code>、<code>kubeadm token delete</code> 、<code>kubeadm token list</code>和<code>kubeadm token generate</code>四个命令。</li>
+</ol>
+<h1 id="6-alpha集合"><a href="#6-alpha集合" class="headerlink" title="6. alpha集合"></a>6. alpha集合</h1><p>kubeadm提供了很多alpha测的命令，属于尝鲜、不稳定的功能。统一以<code>kubeadm alpha</code>命令提供。感兴趣的同学请自行尝试。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Kubernetes/" rel="tag"># Kubernetes</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/2018/02/12/kubernetes-install/" rel="next" title="天朝之Kubernetes安装--Kubeadm篇">
+                  <i class="fa fa-chevron-left"></i> 天朝之Kubernetes安装--Kubeadm篇
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/2018/04/21/keystone-start/" rel="prev" title="Keystone入门到精通：1.概述">
+                  Keystone入门到精通：1.概述 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-init"><span class="nav-number">1.</span> <span class="nav-text">1. init</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-流程概述"><span class="nav-number">1.1.</span> <span class="nav-text">1. 流程概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-参数"><span class="nav-number">1.2.</span> <span class="nav-text">2. 参数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-–config-用法"><span class="nav-number">1.3.</span> <span class="nav-text">3. –config 用法</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-join"><span class="nav-number">2.</span> <span class="nav-text">2. join</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-reset"><span class="nav-number">3.</span> <span class="nav-text">3. reset</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-upgrade"><span class="nav-number">4.</span> <span class="nav-text">4. upgrade</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#5-其他命令"><span class="nav-number">5.</span> <span class="nav-text">5. 其他命令</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#6-alpha集合"><span class="nav-number">6.</span> <span class="nav-text">6. alpha集合</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <img class="site-author-image" itemprop="image" alt="wxy"
+    src="/uploads/avatar.gif">
+  <p class="site-author-name" itemprop="name">wxy</p>
+  <div class="site-description" itemprop="description">我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangxiyuan" title="GitHub &amp;rarr; https:&#x2F;&#x2F;github.com&#x2F;wangxiyuan" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wxy</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '21c35c7aed88d55c8720',
+      clientSecret: 'b5950e6c453c7aecf18966e26add36bde15395a6',
+      repo: 'blog_comment',
+      owner: 'wangxiyuan',
+      admin: ['wangxiyuan'],
+      id: '3efbee6a1d305be65459f03fc602b7b5',
+        language: '',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+</script>
+
+</body>
+</html>

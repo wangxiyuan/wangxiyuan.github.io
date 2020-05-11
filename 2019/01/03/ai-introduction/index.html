@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.5.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"always","offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    translation: {
+      copy_button: 'Copy',
+      copy_success: 'Copied',
+      copy_failure: 'Copy failed'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="前言人工智能（AI，Artificial Intelligence）是当前最火的技术之一，随着技术的不断发展，AI的江湖早已呈现出山头林立、百花齐放的盛泰。然而，面对这个纷繁复杂的江湖，作为刚踏入其中的一枚小虾米，一定会有种无从下手的感觉。什么是Tensorflow、Caffe、Troch？ONNX、TVM又是干什么的？他们之间又是什么关系？本文是我在学习AI时的一些总结。 什么是人工智能AI，即">
+<meta property="og:type" content="article">
+<meta property="og:title" content="我理解的AI">
+<meta property="og:url" content="https://blog.wangxiyuan.top/2019/01/03/ai-introduction/index.html">
+<meta property="og:site_name" content="风悦心幽时">
+<meta property="og:description" content="前言人工智能（AI，Artificial Intelligence）是当前最火的技术之一，随着技术的不断发展，AI的江湖早已呈现出山头林立、百花齐放的盛泰。然而，面对这个纷繁复杂的江湖，作为刚踏入其中的一枚小虾米，一定会有种无从下手的感觉。什么是Tensorflow、Caffe、Troch？ONNX、TVM又是干什么的？他们之间又是什么关系？本文是我在学习AI时的一些总结。 什么是人工智能AI，即">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://blog.wangxiyuan.top/images/ir.png">
+<meta property="article:published_time" content="2019-01-03T10:48:03.000Z">
+<meta property="article:modified_time" content="2020-05-11T03:35:18.018Z">
+<meta property="article:author" content="wxy">
+<meta property="article:tag" content="AI">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.wangxiyuan.top/images/ir.png">
+
+<link rel="canonical" href="https://blog.wangxiyuan.top/2019/01/03/ai-introduction/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>我理解的AI | 风悦心幽时</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">风悦心幽时</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">Blog</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>Archives</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/wangxiyuan" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="en">
+    <link itemprop="mainEntityOfPage" href="https://blog.wangxiyuan.top/2019/01/03/ai-introduction/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/uploads/avatar.gif">
+      <meta itemprop="name" content="wxy">
+      <meta itemprop="description" content="我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="风悦心幽时">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          我理解的AI
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-01-03 10:48:03" itemprop="dateCreated datePublished" datetime="2019-01-03T10:48:03+00:00">2019-01-03</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/AI/" itemprop="url" rel="index">
+                    <span itemprop="name">AI</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>人工智能（AI，Artificial Intelligence）是当前最火的技术之一，随着技术的不断发展，AI的江湖早已呈现出山头林立、百花齐放的盛泰。然而，面对这个纷繁复杂的江湖，作为刚踏入其中的一枚小虾米，一定会有种无从下手的感觉。什么是Tensorflow、Caffe、Troch？ONNX、TVM又是干什么的？他们之间又是什么关系？本文是我在学习AI时的一些总结。</p>
+<h1 id="什么是人工智能"><a href="#什么是人工智能" class="headerlink" title="什么是人工智能"></a>什么是人工智能</h1><p>AI，即人工智能。指机器表现出类人的智能，是一个广义上的概念。机器人是AI、人脸识别是AI、阿尔法Go也是AI，等等。它们都有一个共同特性，即机器通过推理、知识、学习、感知等技术，表达出类人的能力。AI包含了很多内容，而我们要讲的是其中的一个子集：机器学习。</p>
+<a id="more"></a>
+<h1 id="什么是机器学习"><a href="#什么是机器学习" class="headerlink" title="什么是机器学习"></a>什么是机器学习</h1><p>机器学习（ML，Machine Learning）是AI的一个重要分支，是实现AI的一个途径，即以机器学习为手段解决AI的问题。其中涉及概率论、线性代数等众多学科，目的是通过设计分析，找出让计算机可以自动学习的算法。应用ML的领域也多种多样，例如数据挖掘、自然语言处理、图像识别等等。ML应用到的算法也多种多种，例如决策树、聚类、贝叶斯分类器、神经网络等等。而我们常听到的深度学习（DL，Deep Learning）是ML的一个分支，源于人工神经网络算法。DL在众多方法中表现优异，学习效果明显，获得了众多AI玩家的青睐。</p>
+<h1 id="如何入门"><a href="#如何入门" class="headerlink" title="如何入门"></a>如何入门</h1><p>我一般把机器学习分为三部分：<strong>理论研究</strong>、<strong>工程实现</strong>与<strong>商业生态</strong>。这三者密切相关，缺一不可，相辅相成的造就了当前如此凶猛的AI热潮。</p>
+<h2 id="理论研究"><a href="#理论研究" class="headerlink" title="理论研究"></a>理论研究</h2><p>ML的核心是算法，如前面提到的决策树、聚类、分类，这些都是ML中应用到的算法。涉及到很多数学理论学科，门槛较高，属于高精尖范畴。一般的从业人员包括高校教授、博士，专业研究机构，或科技公司的专业研究部门等。常见的算法有：</p>
+<ul>
+<li>人工神经网络</li>
+<li>贝叶斯类</li>
+<li>决策树</li>
+<li>线性分类器</li>
+<li>聚类分析</li>
+<li>……</li>
+</ul>
+<p>每个算法又可以展开出更多的方法，比如人工神经网络又包括反向传播、卷积神经网络等等。作为初学者，我们只需要了解各种算法的概念和大概原理即可，对感兴趣的或者工作涉及的细分领域，再仔细钻研即可。</p>
+<h2 id="工程实现"><a href="#工程实现" class="headerlink" title="工程实现"></a>工程实现</h2><p>工程实现是指把理论中的算法翻译成能让机器理解的实现。既可以是纯软实现，也可以是软硬结合的实现。</p>
+<h3 id="软件"><a href="#软件" class="headerlink" title="软件"></a>软件</h3><p>所谓ML山头林立，其中一点就包括纷繁复杂的各类软件实现库。比如仅针对图像识别领域，有名的开源库就有openCV、FreeImage、CImg等等，它们或使用不同的编程语言，或定义了不同的模型，又或定义了各种不同的接口。各种开源库百花齐放，让新手无从下手。甚至如Tensorflow、caffe这种大型的开源框架，本身就集成了很多常用的ML算法。常见的库有：</p>
+<ul>
+<li>Tensorflow</li>
+<li>Caffe</li>
+<li>Scikit-Learn</li>
+<li>Deeplearning4j</li>
+<li>Torch</li>
+<li>Azure Machine Learning</li>
+<li>……</li>
+</ul>
+<h3 id="硬件"><a href="#硬件" class="headerlink" title="硬件"></a>硬件</h3><p>想必大家也常常听到一个新概念<code>AI芯片</code>。我们都知道软件是要运行在硬件上的，ML也不例外。在我眼里<code>AI芯片</code>=<code>传统芯片</code>+<code>ML定制化</code>。这里的<code>ML定制化</code>可以包括如图像识别加速、GPU高速运算、可编程等等。这个定制化一出来，各种类的硬件也就产生了。硬件厂商虽然不如软件那么繁多，但在AI硬件领域也暂时没有一个统一标准。于是一个有趣的现象产生了：这家的芯片跑tensorflow牛逼，那家的芯片完美支持Caffe，在Azure的芯片上跑Azure ML性能最佳等等。如何适配软硬件，又成了一个令人头疼的问题。</p>
+<h2 id="商业生态"><a href="#商业生态" class="headerlink" title="商业生态"></a>商业生态</h2><p>任何技术发展到一定的程度，面临的必然是如何在生产环境中应用以及如何在商业上成功。其关注点在于<strong>成熟度</strong>与<strong>生态</strong>。<strong>成熟度</strong>这个维度简单，哪些库性能好，哪些框架功能全，基本都一目了然。而<strong>生态</strong>却不是一朝一夕能建立的，这也是目前各大AI厂商聚焦的地方。而在一个生态中，标准的定义往往是众兵家必争之地。毕竟，人人都想当规则制定者。在讲标准之前，先讲一下<code>中间表示层</code>（IR，Intermediate Representation）</p>
+<h3 id="什么是IR"><a href="#什么是IR" class="headerlink" title="什么是IR"></a>什么是IR</h3><blockquote>
+<p>An Intermediate representation (IR) is the data structure or code used internally by a compiler or virtual machine to represent source code. An IR is designed to be conducive for further processing, such as optimization and translation.    –Wikipedia</p>
+</blockquote>
+<p>IR就是中间翻译层的意思，它汇聚南北向流量，起到统一格式与类型的作用。在ML中，我们把各种软件库（模型）视为前端（北向），各类AI芯片为后端（南向）。各种库生成的模型通过IR处理后，就可以跑在任何符合标准的硬件上。如图所示：</p>
+<p>   <img src="/images/ir.png" alt="IR"></p>
+<p>可见，谁控制了IR，谁就控制了标准。</p>
+<h3 id="模型和接口的标准"><a href="#模型和接口的标准" class="headerlink" title="模型和接口的标准"></a>模型和接口的标准</h3><p>然而理想很丰满，现实却很骨感。</p>
+<p>在没IR之前，大家基本都是各玩各的。这家可能对某个算法进行了优化，那家可能在某种硬件上性能好。甚至有些框架自己的生态本身就已经很成熟了。例如Tensorflow，它是由Google开源的机器学习框架，是最早一批开源得框架之一，经过长久的发展，已经获得了广大开发人员的认可与喜爱。同时，也有自己的编译层框架XLA（Accelerated Linear Algebra），XLA可以优化Tensorflow计算，有助于硬件加速。因此，如同云计算领域的AWS一样，Tensorflow作为ML领域的大佬，目前并不怎么愿意与其他框架一起玩。</p>
+<p>当然，其他的厂商也不愿意看着Google一家独大。于是，一些开源的IR层框架也慢慢浮出水面。</p>
+<p>Facebook联合Microsoft和AWS发布了名为<code>ONNX</code>的IR框架。<a href="https://onnx.ai" target="_blank" rel="noopener">ONNX</a>在深度学习领域定义了一种开放式的模型格式，支持不同的ML框架之间的模型格式转换，并针对底层硬件进行了一定优化。其北向对接各大ML框架，统一模型格式，支持模型的相互转换；南向对接各种AI芯片，统一了接口标准。使得多种ML框架和硬件可以协同交互。但ONNX目前在初始阶段，只完成了模型转换的功能，离真正的IR还差很远。<a href="https://onnx.ai/supported-tools" target="_blank" rel="noopener">ONNX目前支持的框架和设备</a></p>
+<p>还有一款商业气息不重的IR框架，名为<code>TVM</code>。<a href="https://tvm.ai" target="_blank" rel="noopener">TVM</a>出自于美国华盛顿大学的一个名为<a href="https://sampl.cs.washington.edu" target="_blank" rel="noopener">SAMPL</a>的机器学习研究组。TVM的前身叫NNVM，也是一款以优化和统一为目的的IR框架。后来，开发组可能觉得NNVM略显单薄，在NNVM之上，开发了更为厚重的TVM框架。TVM厚在哪里？与ONNX有何不同？针对他们，用户应该如何选择？这些都是我目前回答不了的问题。留作我的作业之一吧，希望能在以后的blog中给大家一个满意的答案。</p>
+<h3 id="AI上云"><a href="#AI上云" class="headerlink" title="AI上云"></a>AI上云</h3><p>机器学习，尤其是牵扯到复杂算法的机器学习是要消耗大量的计算、存储、网络资源的。大多数用户不可能为了一点AI学习就购买相应的硬件设备。因此，就有了大量的云上AI计算的需求。针对公有云、私有云、混合云、边缘云等不同的云环境，AI也都有相应的需求和场景。这里我也不班门弄斧了，留给大家思考吧。</p>
+<h1 id="下一步"><a href="#下一步" class="headerlink" title="下一步"></a>下一步</h1><p>想要成为AI领域的专家，则对理论研究、工程实现、商业生态的掌握缺一不可。学习枯燥的数学算法时，不妨看看对应的计算机编程实现；在研究技术时，不妨抬头看看AI生态这片天。在此，我与君共勉，望大家一起努力，早日成为AI领域的core member。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/AI/" rel="tag"># AI</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/2018/04/26/k2k-federation/" rel="next" title="Keystone实战-Keystone to Keystone Federation 1">
+                  <i class="fa fa-chevron-left"></i> Keystone实战-Keystone to Keystone Federation 1
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/2019/07/01/percona-arm/" rel="prev" title="Percona-server ARM编译总结">
+                  Percona-server ARM编译总结 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#什么是人工智能"><span class="nav-number">2.</span> <span class="nav-text">什么是人工智能</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#什么是机器学习"><span class="nav-number">3.</span> <span class="nav-text">什么是机器学习</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#如何入门"><span class="nav-number">4.</span> <span class="nav-text">如何入门</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#理论研究"><span class="nav-number">4.1.</span> <span class="nav-text">理论研究</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#工程实现"><span class="nav-number">4.2.</span> <span class="nav-text">工程实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#软件"><span class="nav-number">4.2.1.</span> <span class="nav-text">软件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#硬件"><span class="nav-number">4.2.2.</span> <span class="nav-text">硬件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#商业生态"><span class="nav-number">4.3.</span> <span class="nav-text">商业生态</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是IR"><span class="nav-number">4.3.1.</span> <span class="nav-text">什么是IR</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#模型和接口的标准"><span class="nav-number">4.3.2.</span> <span class="nav-text">模型和接口的标准</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AI上云"><span class="nav-number">4.3.3.</span> <span class="nav-text">AI上云</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#下一步"><span class="nav-number">5.</span> <span class="nav-text">下一步</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <img class="site-author-image" itemprop="image" alt="wxy"
+    src="/uploads/avatar.gif">
+  <p class="site-author-name" itemprop="name">wxy</p>
+  <div class="site-description" itemprop="description">我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangxiyuan" title="GitHub &amp;rarr; https:&#x2F;&#x2F;github.com&#x2F;wangxiyuan" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wxy</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '21c35c7aed88d55c8720',
+      clientSecret: 'b5950e6c453c7aecf18966e26add36bde15395a6',
+      repo: 'blog_comment',
+      owner: 'wangxiyuan',
+      admin: ['wangxiyuan'],
+      id: '91c38ae85f3f17eb593f368b0bd28df6',
+        language: '',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+</script>
+
+</body>
+</html>

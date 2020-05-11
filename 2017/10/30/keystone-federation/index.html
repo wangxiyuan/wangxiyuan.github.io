@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '7.5.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"always","offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    translation: {
+      copy_button: 'Copy',
+      copy_success: 'Copied',
+      copy_failure: 'Copy failed'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="所谓OpenStack的联邦鉴权就是指通过Keystnoe与第三方服务配合，实现使用第三方鉴权信息登录现有云环境的机制。例如，用户A想使用公有云X，但出于安全考虑，不想把自己的信息放在X上，通过federation identity打通二者之间的认证，A只需要在可信任的地方Y（可以是其他云、第三方认证系统等等）上完成鉴权校验，就可以访问X。还有我们在使用软件时，常常用的“使用微信登录”这样的功能，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Keystone中的联邦认证机制（Federation Identity）">
+<meta property="og:url" content="https://blog.wangxiyuan.top/2017/10/30/keystone-federation/index.html">
+<meta property="og:site_name" content="风悦心幽时">
+<meta property="og:description" content="所谓OpenStack的联邦鉴权就是指通过Keystnoe与第三方服务配合，实现使用第三方鉴权信息登录现有云环境的机制。例如，用户A想使用公有云X，但出于安全考虑，不想把自己的信息放在X上，通过federation identity打通二者之间的认证，A只需要在可信任的地方Y（可以是其他云、第三方认证系统等等）上完成鉴权校验，就可以访问X。还有我们在使用软件时，常常用的“使用微信登录”这样的功能，">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://blog.wangxiyuan.top/images/keystone-federation1.png">
+<meta property="article:published_time" content="2017-10-30T14:38:20.000Z">
+<meta property="article:modified_time" content="2020-05-11T03:35:18.018Z">
+<meta property="article:author" content="wxy">
+<meta property="article:tag" content="OpenStack">
+<meta property="article:tag" content="Keystone">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blog.wangxiyuan.top/images/keystone-federation1.png">
+
+<link rel="canonical" href="https://blog.wangxiyuan.top/2017/10/30/keystone-federation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Keystone中的联邦认证机制（Federation Identity） | 风悦心幽时</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">风悦心幽时</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">Blog</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>Archives</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/wangxiyuan" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="en">
+    <link itemprop="mainEntityOfPage" href="https://blog.wangxiyuan.top/2017/10/30/keystone-federation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/uploads/avatar.gif">
+      <meta itemprop="name" content="wxy">
+      <meta itemprop="description" content="我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="风悦心幽时">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Keystone中的联邦认证机制（Federation Identity）
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2017-10-30 14:38:20" itemprop="dateCreated datePublished" datetime="2017-10-30T14:38:20+00:00">2017-10-30</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/OpenStack/" itemprop="url" rel="index">
+                    <span itemprop="name">OpenStack</span>
+                  </a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>所谓OpenStack的联邦鉴权就是指通过Keystnoe与第三方服务配合，实现使用第三方鉴权信息登录现有云环境的机制。例如，用户A想使用公有云X，但出于安全考虑，不想把自己的信息放在X上，通过federation identity打通二者之间的认证，A只需要在可信任的地方Y（可以是其他云、第三方认证系统等等）上完成鉴权校验，就可以访问X。还有我们在使用软件时，常常用的“使用微信登录”这样的功能，也是基于federation identity的。Keystone federation identity为混合云在用户管理层面提供了良好的解决方案。在讲述Keystone的联邦鉴权之前，我们需要先理解几个关键的概念：</p>
+<a id="more"></a>
+<ol>
+<li>Identity Provider（IdP）：鉴权提供方，又称断言（assertion）方，即存储并校验用户鉴权信息的地方。如上例的Y。常见的有ADFS(Active Directory Federation Services)、FreeIPA、Tivoli Access Manager等。</li>
+<li>Service Provider（SP）：服务提供方，只提供服务，不包含鉴权部分。如上例的X。</li>
+<li>Assertion Protocol:认证协议，即IdP和SP之前协作时用到的方法，常用的有SAML、OpenID、Oauth等。由IdP生成，如IdP使用SAML方式向SP完成校验。</li>
+<li>Web Single Sign On（Web SSO）：网络单点登录，用户可以通过一个账号，登录不同的系统或服务，如上例中通过登录Y，来登录X。</li>
+</ol>
+<p>以及Keystone中用到的概念： </p>
+<ol>
+<li>Mapping：一组SP合IdP之间的映射规则，如IdP中的A用户在SP中有什么样的权限等。IdP中每个Protocol对应一个Mapping对象。</li>
+<li>Unscoped token: 没有作用域的token，这种token只有用户信息，不包含角色、租户、域、endpoint信息，因此只能被Keystone使用，用来获取对应的scope（作用域），从而生成对应的scoped token</li>
+<li>Scoped token：包含了所有必须的信息，被其他服务接收并使用。</li>
+</ol>
+<h1 id="1-Keystone-Federation的原理"><a href="#1-Keystone-Federation的原理" class="headerlink" title="1. Keystone Federation的原理"></a>1. Keystone Federation的原理</h1><p>Keystone是IdP，还是SP？</p>
+<ul>
+<li>场景1：华为公有云（HWS）使用的是OpenStack架构，向外提供了Keystone服务。公司A在本地使用了LDAP类的系统存储本公司员工的用户信息。现在公司A的员工B想通过Federation identity机制，用公司的LDAP中自己的信息登录HWS。此时公司A的LDAP是LdP，HWS的Keystone是SP。</li>
+<li>场景2：公司A在本地使用OpenStack部署了一套私有云，现在想用本地Keystone的用户通过Federation identity机制登录AWS（假设AWS支持了该方法）。此时本地的Keystone是IdP，AWS的IAM服务是SP。</li>
+<li>场景3：公司A在本地使用OpenStack部署了一套私有云，现在想用本地Keystone的用户通过Federation identity机制登录HWS。此时本地的Keystone是IdP，HWS的Keystone是SP。</li>
+</ul>
+<p>因此，针对不同场景，Keystone既可以是IdP，也可以是SP。下面看一张经典的Federation流程图:<br><img src="/images/keystone-federation1.png" alt="Federation Example"></p>
+<ol>
+<li>用户发送请求给SP，请求查看服务列表。</li>
+<li>SP验证用户的有效性，根据用户请求中包含的验证方法，SP服务将信息发送至第三方IdP，进一步请求用户身份验证。</li>
+<li>第三方IdP验证用户身份后，发送至SP，证明用户身份已经确认，里面包含用户的具体信息及IdP的具体信息。</li>
+<li>SP对claim信息进行检查，确认IdP身份有效后，查询本地数据中IdP与SP之间对于用户的映射表，找出映射到的用户组。</li>
+<li>SP根据对应的用户组，验证用户的操作权限，并返回此权限范围内可看到的云环境中的服务列表。</li>
+</ol>
+<h2 id="1-1-Keystone-as-IdP"><a href="#1-1-Keystone-as-IdP" class="headerlink" title="1.1 Keystone as IdP"></a>1.1 Keystone as IdP</h2><p>Keystone作为Identity时，只需要接收SP的鉴权请求，生成对应的Protocal返回给SP即可。</p>
+<h2 id="1-2-Keystone-as-SP"><a href="#1-2-Keystone-as-SP" class="headerlink" title="1.2 Keystone as SP"></a>1.2 Keystone as SP</h2><p>Keystone作为Service Provider，当用户访问Keystone想请求一个Token时，Keystone首先把鉴权请求转向对应的Identity Provider，然后接收并校验IdP传来的Protocol内容，最后根据Mapping关系把该内容转化成一个Token返回给用户。</p>
+<h1 id="2-Keystone-Federation的配置"><a href="#2-Keystone-Federation的配置" class="headerlink" title="2. Keystone Federation的配置"></a>2. Keystone Federation的配置</h1><p>下面我们看看如何配置Keystone使之成为IdP或SP</p>
+<h2 id="2-1-Keystone-as-IdP"><a href="#2-1-Keystone-as-IdP" class="headerlink" title="2.1 Keystone as IdP"></a>2.1 Keystone as IdP</h2><p>作为IdP，关键点在于如何生成对应的Protocal，以SAML为例，Keystone使用PySAML2库来生成SAML。生成SAML时，需要在配置文件中新增相关的配置项。关键的几个如下：</p>
+<blockquote>
+<p>[saml]<br>生成SAML时用到的公私钥，需要管理员提供。<br>certfile=/etc/keystone/ssl/certs/ca.pem<br>keyfile=/etc/keystone/ssl/private/cakey.pem</p>
+<p>SAML的生产者的一些必要信息。<br>idp_entity_id=<a href="https://keystone.example.com/v3/OS-FEDERATION/saml2/idp" target="_blank" rel="noopener">https://keystone.example.com/v3/OS-FEDERATION/saml2/idp</a><br>idp_sso_endpoint=<a href="https://keystone.example.com/v3/OS-FEDERATION/saml2/sso" target="_blank" rel="noopener">https://keystone.example.com/v3/OS-FEDERATION/saml2/sso</a></p>
+<p>生产SAML需要用到的metadata文件，用<code>keystone-manage saml_idp_metadata</code>命令生成。<br>idp_metadata_path=/etc/keystone/saml2_idp_metadata.xml</p>
+</blockquote>
+<p>还有一些可选配置项,是一些SAML生产者的补充信息：</p>
+<blockquote>
+<p>idp_organization_name=example_company<br>idp_organization_display_name=Example Corp.<br>idp_organization_url=example.com<br>idp_contact_company=example_company<br>idp_contact_name=John<br>idp_contact_surname=Smith<br>idp_contact_email=jsmith@example.com<br>idp_contact_telephone=555-55-5555<br>idp_contact_type=technical</p>
+</blockquote>
+<p>配置完后，还需要在Keystone中建立与SP的联系，即在Keystone中创建SP对象。CLI操作如下：</p>
+<blockquote>
+<p>openstack service provider create test_sp_name –service-provider-url XXX –auth-url YYY</p>
+</blockquote>
+<p>其中test_sp_name是SP的名字。service-provider-url是sp的url，在生成SAML时使用。auth-url是指生成后的SAML发向何处。<br>至此Keystone as IdP配置完成。当test_sp_name发来一个鉴权请求时，Keystone通过以上配置生成SAML，然后把SAML发向test_sp_name的auth-url。</p>
+<h2 id="2-2-Keystone-as-SP"><a href="#2-2-Keystone-as-SP" class="headerlink" title="2.2 Keystone as SP"></a>2.2 Keystone as SP</h2><p>Keystone作为Service Provider时，需要做以下配置：</p>
+<ol>
+<li>新增mapped鉴权方式，表示允许接收federation类的认证，如允许接收SAML。<blockquote>
+<p>[auth]<br>mapped是saml2（SAML的2.0版本）和openid的统称<br>methods = external,password,token,mapped</p>
+</blockquote>
+</li>
+<li>在Keystone中，创建专用做federation的用户或用户组（local_user or local_group）。</li>
+<li>在Keystone中创建IdP对象。remote-ids表示该IdP对应的id，用来防止其他IdP侵入。<blockquote>
+<p>openstack identity provider create test_idp_name –remote-ids xxx,yyy…</p>
+</blockquote>
+</li>
+<li>在Keystone中创建Mapping。rules是指IdP中的user（叫作remote_user)与local_user或local_group之间的映射关系，涉及到权限等。在附录中会对其语法进行详细说明。<br>cal_user or local_group<blockquote>
+<p>openstack mapping create test_mapping_name –rules xxxx</p>
+</blockquote>
+</li>
+<li>在Keystone中创建对应的protocol。其中identity-provider是第三步创建的IdP对象；mapping是第四步创建的规则。<blockquote>
+<p>openstack federation protocol create test_protocol_name –identity-provider xxx –mapping yyy</p>
+</blockquote>
+</li>
+<li>把Keystone部署在Apache下，并启用libapache2-mod-shib2模块并进行相关配置。该模块会对请求进行重转向。<blockquote>
+</blockquote>
+至此，Keystone as SP配置完成。用户访问Keystone时，Apache把请求转向IdP。去IdP认证完后，请求带着生成的SAML继续访问Keystone，Keystone就会返回一个unscoped token给用户。然后用户用这个unscoped token访问Keystone，获取一个scoped token。最后用户就可以用这个token访问其他服务啦。</li>
+</ol>
+<h1 id="3-Keystone-to-Keystone-Federation"><a href="#3-Keystone-to-Keystone-Federation" class="headerlink" title="3. Keystone to Keystone Federation"></a>3. Keystone to Keystone Federation</h1><p>了解了What和How后，我们下来通过一个例子重点来讲解Why。</p>
+<blockquote>
+<p>实验环境：两套OpenStack，Openstack-A中的Keystone-A作为Service Provider，Openstack-B中的Keystone-B作为Identity Provider。Keystone-A、B中分别有user-A、B。<br>实验目标：Keystone-B中的user-B访问Keystone-A后，拥有user-A的权限，可以访问Keystone-A中的Nova、Neutron、Cinder等服务。</p>
+</blockquote>
+<p>Keystone-A的准备：</p>
+<ol>
+<li><p>当用户B访问Keystone-A时，Keystone-A需要有重导向Keystone-B的能力，这里必须把Keystone-A部署在Apache下，使用Apache的扩展模块实现该功能。目前支持的有：</p>
+<ul>
+<li>mod-shib2(SAML协议)，本文以此为例</li>
+<li>mod_auth_mellon（SAML协议）</li>
+<li>mod_auth_openidc （OpenID协议）</li>
+</ul>
+<p>步骤如下：</p>
+<blockquote>
+<ol>
+<li>apt-get install libapache2-mod-shib2</li>
+<li>编辑/etc/apache2/sites-available/keystone.conf，在&lt;VirtualHost <em>:5000&gt;（因环境而异，根据Keystone部署方式不同而不同，例如O版的devstack就可以如此，但P版之后devstack的Keystone默认使用uwsgi启动，就不能直接这么做了。）下新增一行WSGIScriptAliasMatch ^(/v3/OS-FEDERATION/identity_providers/.</em>?/protocols/.*?/auth)$ /usr/local/bin/keystone-wsgi-public/$1。并新增对应的IdP的Location。</li>
+</ol>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&lt;VirtualHost *:5000&gt;  </span><br><span class="line">    WSGIScriptAliasMatch ^(&#x2F;v3&#x2F;OS-FEDERATION&#x2F;identity_providers&#x2F;.*?&#x2F;protocols&#x2F;.*?&#x2F;auth)$ &#x2F;usr&#x2F;local&#x2F;bin&#x2F;keystone-wsgi-public&#x2F;$1</span><br><span class="line"></span><br><span class="line">&lt;Location &#x2F;Shibboleth.sso&gt;</span><br><span class="line">    SetHandler shib</span><br><span class="line">&lt;&#x2F;Location&gt;</span><br><span class="line"></span><br><span class="line">&lt;Location &#x2F;v3&#x2F;OS-FEDERATION&#x2F;identity_providers&#x2F;myidp&#x2F;protocols&#x2F;mapped&#x2F;auth&gt;</span><br><span class="line">    ShibRequestSetting requireSession 1</span><br><span class="line">    AuthType shibboleth</span><br><span class="line">    ShibExportAssertion Off</span><br><span class="line">    Require valid-user</span><br><span class="line"></span><br><span class="line">    &lt;IfVersion &lt; 2.4&gt;</span><br><span class="line">        ShibRequireSession On</span><br><span class="line">        ShibRequireAll On</span><br><span class="line">   &lt;&#x2F;IfVersion&gt;</span><br><span class="line">&lt;&#x2F;Location&gt;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>  <code>mapped</code>是后续要创建的protocol类型。<br>  <code>myidp</code>是后续要创建的IdP的名字。</p>
+<ol start="3">
+<li>打开shib2模块，并重启Apache。</li>
+</ol>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ a2enmod shib2</span><br><span class="line">$ service apache2 restart</span><br></pre></td></tr></table></figure>
+<blockquote>
+<ol start="4">
+<li>生成keypair，编辑XML。这一步是为了生成shibboleth的metadata。细节不再表述，请参考： <a href="https://docs.openstack.org/keystone/pike/advanced-topics/federation/shibboleth.html" target="_blank" rel="noopener">https://docs.openstack.org/keystone/pike/advanced-topics/federation/shibboleth.html</a></li>
+</ol>
+</blockquote>
+</li>
+<li><p>配置Keystone-A。</p>
+<ol>
+<li>在配置项methods中新增mapped。<blockquote>
+<p>[auth]<br>methods = external,password,token,mapped</p>
+</blockquote>
+</li>
+<li>创建Federation专用的domain、project、group和user-A并赋予相应的权限。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ openstack domain create federated_domain</span><br><span class="line">$ openstack project create federated_project --domain federated_domain</span><br><span class="line">$ openstack user create user-A --domain federated_domain</span><br><span class="line">$ openstack group create federated_users</span><br><span class="line">$ openstack role add --group federated_users --domain federated_domain Member</span><br><span class="line">$ openstack role add --group federated_users --project federated_project Member</span><br><span class="line">$ openstack role add --user user-A --domain federated_domain Member</span><br><span class="line">$ openstack role add --user user-A --project federated_project Member</span><br></pre></td></tr></table></figure></li>
+<li>创建IdP对象。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ openstack identity provider create --remote-id https:&#x2F;&#x2F;Keystone-B&#x2F;v3&#x2F;OS-FEDERATION&#x2F;saml2&#x2F;idp myidp</span><br></pre></td></tr></table></figure>
+<code>remote-id</code>前面讲过，是IdP的唯一标识，由IdP的metadata提供。这个例子中IdP是Keystone-B，它的<code>remote-id</code>由配置项[saml]/idp_entity_id提供。</li>
+<li>创建Mapping。映射User-A和User-B的关系<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">$ cat &gt; rules.json &lt;&lt;EOF</span><br><span class="line">[</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;local&quot;: [</span><br><span class="line">            &#123;</span><br><span class="line">                &quot;user&quot;: &#123;</span><br><span class="line">                    &quot;name&quot;: &quot;User-A&quot;</span><br><span class="line">                &#125;,</span><br><span class="line">                &quot;group&quot;: &#123;</span><br><span class="line">                    &quot;domain&quot;: &#123;</span><br><span class="line">                        &quot;name&quot;: &quot;Default&quot;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    &quot;name&quot;: &quot;federated_users&quot;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        ],</span><br><span class="line">        &quot;remote&quot;: [</span><br><span class="line">            &#123;</span><br><span class="line">                &quot;type&quot;: &quot;openstack_user&quot;,</span><br><span class="line">                &quot;any_one_of&quot;: [</span><br><span class="line">                    &quot;User-B&quot;</span><br><span class="line">                ]</span><br><span class="line">            &#125;</span><br><span class="line">        ]</span><br><span class="line">    &#125;</span><br><span class="line">]</span><br><span class="line">EOF</span><br><span class="line">$ openstack mapping create --rules rules.json myidp_mapping</span><br></pre></td></tr></table></figure></li>
+<li>创建对应的protocol<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ openstack federation protocol create mapped --mapping myidp_mapping --identity-provider myidp</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+</li>
+</ol>
+<p>Keysonte-B的准备：</p>
+<ol>
+<li>配置[smal]的众多配置项，注意与SP配置的对应关系。并生成metadata。</li>
+<li>创建user-B。</li>
+<li>创建SP对象。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ openstack service provider create --service-provider-url &#39;http:&#x2F;&#x2F;&#x2F;keystone-A&#x2F;Shibboleth.sso&#x2F;SAML2&#x2F;ECP&#39; --auth-url http:&#x2F;&#x2F;Keystone-A:5000&#x2F;v3&#x2F;OS-FEDERATION&#x2F;identity_providers&#x2F;myidp&#x2F;protocols&#x2F;mapped&#x2F;auth mysp</span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<p>整体流程：</p>
+<ol>
+<li>User-B访问keystone-A请求Token，POST /v3/OS-FEDERATION/identity_providers/myidp/protocols/mapped/auth</li>
+<li>Keysonte-A接收到请求，由Apache重导向到KeystoneB。</li>
+<li>Keysotne-B对User-B鉴权通过，生成SAML，返回给Keysotne-A</li>
+<li>Keystone-A校验SAML通过，由Mapping知道User-B有本地User-A的权限，生成User-A对应的unscoped token，返回给User-B</li>
+<li>User-B带着这个unscoped token请求Keystone-A，获取对应的project作用域， GET /v3/OS-FEDERATION/project</li>
+<li>User-B带着unscoped token和作用域，请求Keystone-A，获取scoped token。POST /V3/auth/token</li>
+<li>User-B带着scoped token，访问Keystone-A所在的OpenStack。</li>
+</ol>
+<h1 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h1><p>Federation identity是Web架构下，应用非常广泛的一项技术。而在云场景下，Keysonte的此功能很好的解决了OpenStack多云互联的鉴权问题。Keystone还支持与Horizon配合，通过Ferderation支持Web Single Sign-On (单点登录，SSO)。并且Keystone还支持OpenID、Oauth等协议。但Keystone federation的配置与部署十分复杂，再加上开源社区不注重文档导致文档较少或过期的问题，使得学习门槛变高，本文也有很多细节没有涉及。更多细节还是推荐大家通过Keystone代码来理解。</p>
+<h1 id="附录：Mapping-rule语法。"><a href="#附录：Mapping-rule语法。" class="headerlink" title="附录：Mapping rule语法。"></a>附录：Mapping rule语法。</h1><p>Mapping是一个Json体，以“rules”开头，形式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;rules&quot;: [mapping1,mapping2....mappingN]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中每个mappingN也是一个Json体，各包含两个key：“local”和“remote”，形式如下： </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;local&quot;: [xxx,yyy,zzz],</span><br><span class="line">    &quot;romote&quot;: [aaa,bbb,ccc]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>local中包含SP的用户信息，可包括：user、project、domian以及group，形式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;user&quot;: &#123;</span><br><span class="line">            &quot;name&quot;: &quot;&#123;0&#125;&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;group&quot;: &#123;</span><br><span class="line">            &quot;id&quot;: &quot;0cd5e9&quot;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;user&quot;: &#123;</span><br><span class="line">            &quot;id&quot;: &quot;0cd5e8&quot;,</span><br><span class="line">	    &quot;domain&quot;: &#123;</span><br><span class="line">	        &quot;id&quot;: &quot;0cd5e7&quot;</span><br><span class="line">	    &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;group&quot;: &#123;                        </span><br><span class="line">            &quot;name&quot;: &quot;&#123;1&#125;&quot;,</span><br><span class="line">	    &quot;domain&quot;: &#123;</span><br><span class="line">	        &quot;name&quot;: &quot;test&quot;</span><br><span class="line">	    &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>remote包含IdP的信息，以SAML协议为例，就是SAML中的一些信息。形式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;type&quot;: &quot;UserName&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;type&quot;: &quot;cn&#x3D;IBM_Canada_Lab&quot;,</span><br><span class="line">        &quot;not_any_of&quot;: [</span><br><span class="line">            &quot;.*@naww.com$&quot;</span><br><span class="line">        ],</span><br><span class="line">        &quot;regex&quot;: true</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;type&quot;: &quot;cn&#x3D;IBM_USA_Lab&quot;,</span><br><span class="line">        &quot;any_one_of&quot;: [</span><br><span class="line">            &quot;.*@yeah.com$&quot;</span><br><span class="line">        ],</span><br><span class="line">        &quot;regex&quot;: true</span><br><span class="line">    &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>其中“not_any_of”和“any_one_of”是关键字，意思如字面所示。其他关键字还有：“blacklist”和“whitelist”。因此组合起来，这个rule就产生了:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;rules&quot;: [</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;local&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;user&quot;: &#123;</span><br><span class="line">                        &quot;name&quot;: &quot;&#123;0&#125;&quot;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    &quot;group&quot;: &#123;</span><br><span class="line">                        &quot;id&quot;: &quot;0cd5e9&quot;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;user&quot;: &#123;</span><br><span class="line">                        &quot;id&quot;: &quot;0cd5e8&quot;,</span><br><span class="line">                        &quot;domain&quot;: &#123;</span><br><span class="line">                            &quot;id&quot;: &quot;0cd5e7&quot;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;group&quot;: &#123;</span><br><span class="line">                        &quot;name&quot;: &quot;&#123;1&#125;&quot;,</span><br><span class="line">                        &quot;domain&quot;: &#123;</span><br><span class="line">                            &quot;name&quot;: &quot;test&quot;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            ],</span><br><span class="line">            &quot;romote&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;UserName&quot;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;cn&#x3D;IBM_Canada_Lab&quot;,</span><br><span class="line">                    &quot;not_any_of&quot;: [</span><br><span class="line">                        &quot;.*@naww.com$&quot;</span><br><span class="line">                    ],</span><br><span class="line">                    &quot;regex&quot;: true</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;cn&#x3D;IBM_USA_Lab&quot;,</span><br><span class="line">                    &quot;any_one_of&quot;: [</span><br><span class="line">                        &quot;.*@yeah.com$&quot;</span><br><span class="line">                    ],</span><br><span class="line">                    &quot;regex&quot;: true</span><br><span class="line">                &#125;</span><br><span class="line">            ]</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以使用Keystone自带的命令<code>keystone-manage mapping_engine</code>来验证rule：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ keystone-manage mapping_engine --rules &lt;file&gt; --input &lt;file&gt;</span><br></pre></td></tr></table></figure>
+
+<p>其中rules是刚生成的JSON对象，input是IdP的SAML对象。如果Mapping与SAML匹配，则输出转换后的结果。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OpenStack/" rel="tag"># OpenStack</a>
+              <a href="/tags/Keystone/" rel="tag"># Keystone</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/2017/10/24/keystone-quota/" rel="next" title="CERN的多层级quota模型(译)">
+                  <i class="fa fa-chevron-left"></i> CERN的多层级quota模型(译)
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/2017/11/07/keystone-trust/" rel="prev" title="Keystone Trust机制">
+                  Keystone Trust机制 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-Keystone-Federation的原理"><span class="nav-number">1.</span> <span class="nav-text">1. Keystone Federation的原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-Keystone-as-IdP"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 Keystone as IdP</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-Keystone-as-SP"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 Keystone as SP</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-Keystone-Federation的配置"><span class="nav-number">2.</span> <span class="nav-text">2. Keystone Federation的配置</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-Keystone-as-IdP"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 Keystone as IdP</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-Keystone-as-SP"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Keystone as SP</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-Keystone-to-Keystone-Federation"><span class="nav-number">3.</span> <span class="nav-text">3. Keystone to Keystone Federation</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-总结"><span class="nav-number">4.</span> <span class="nav-text">4. 总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#附录：Mapping-rule语法。"><span class="nav-number">5.</span> <span class="nav-text">附录：Mapping rule语法。</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <img class="site-author-image" itemprop="image" alt="wxy"
+    src="/uploads/avatar.gif">
+  <p class="site-author-name" itemprop="name">wxy</p>
+  <div class="site-description" itemprop="description">我是人间惆怅客，知君何事泪纵横，断肠声里忆平生。</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangxiyuan" title="GitHub &amp;rarr; https:&#x2F;&#x2F;github.com&#x2F;wangxiyuan" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wxy</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '21c35c7aed88d55c8720',
+      clientSecret: 'b5950e6c453c7aecf18966e26add36bde15395a6',
+      repo: 'blog_comment',
+      owner: 'wangxiyuan',
+      admin: ['wangxiyuan'],
+      id: '5938593f76f0d61e0c009e6b22ac6192',
+        language: '',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+</script>
+
+</body>
+</html>
